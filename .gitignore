@@ -1,0 +1,31 @@
+# ---- data: never commit (public sources, but large + reproducible via scripts/fetch_data.py) ----
+data/raw/
+data/processed/
+*.parquet
+*.zip
+*.gdb/
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+
+# ---- model checkpoints & run outputs (regenerated) ----
+models/*
+!models/.gitkeep
+reports/*
+!reports/.gitkeep
+!reports/README.md
+
+# ---- python / uv ----
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# ---- editor / OS ----
+.DS_Store
+.idea/
+.vscode/
