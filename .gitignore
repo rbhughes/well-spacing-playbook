@@ -9,13 +9,28 @@ data/processed/
 *.dbf
 *.prj
 *.cpg
+data/work/
+*.duckdb
+*.duckdb.wal
+
+# ---- PPDM schema: licensed, NOT redistributable ----
+# PPDM Terms and Conditions cl.3: the model and its supporting material "are, and
+# remain, the intellectual property of the PPDM with all rights reserved". Supply
+# your own PPDM39_PG.zip (members' download) -- scripts/build_ppdm_schema.py
+# regenerates sql/ppdm_min.sql from it. Both are ignored for the same reason:
+# ppdm_min.sql embeds PPDM column definitions verbatim.
+PPDM39_PG.zip
+sql/ppdm_min.sql
 
 # ---- model checkpoints & run outputs (regenerated) ----
 models/*
 !models/.gitkeep
+# reports: the generated .md analyses ARE the deliverables -- track them.
+# Anything bulky (figures, exports) stays out.
 reports/*
 !reports/.gitkeep
 !reports/README.md
+!reports/*.md
 
 # ---- python / uv ----
 .venv/
@@ -29,3 +44,6 @@ __pycache__/
 .DS_Store
 .idea/
 .vscode/
+
+# private reference note (mentions proprietary Geologic catalog)
+IF_WE_HAD_GEOLOGIC_DATA.md

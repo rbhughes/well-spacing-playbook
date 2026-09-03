@@ -12,7 +12,7 @@ other) — reconstructed from **public** directional data. Two artifacts:
    pace, scored on everything (including wells too young to measure).
 
 This is a public-data reworking of an earlier internal recipe. The two changes that shape
-everything: the data is free regulator data (Saskatchewan / Alberta / BC — see `data/README.md`),
+everything: the data is free Alberta regulator data (see `data/README.md`),
 and **multilaterals are the point**, not a v1 simplification.
 
 ---
@@ -41,16 +41,23 @@ and **multilaterals are the point**, not a v1 simplification.
 
 ## Data sources (all public; licences + fetch in `data/README.md`)
 
-- **Saskatchewan GeoHub — "Non Vertical Wells"** (anchor): each leg is a feature explicitly typed
-  `Boss`/`Leg`/`Whipstock`, with its own bottom-hole lat/long. Legs are *labelled*, not inferred —
-  the cleanest multilateral source, unrestricted licence. Verified: a real 34-leg fishbone.
-- **Alberta ST37 shapefiles** (extends to the marquee Clearwater plays): per-leg bottom-hole points
-  (each leg = a distinct UWI via the WCSB event-sequence code) + a well-geometry line layer (~21%
-  are real surveyed traces, free). Attribution licence — publish derivatives, not raw (`data/README.md`).
-- **Petrinex** (Alberta) / regulator production: monthly oil/gas per well → the pace target and
-  neighbour depletion.
-- **BC Energy Regulator** directional surveys: full curved *single-lateral* Montney/Duvernay — the
-  comparison case for "does the model behave on conventional single laterals too."
+**Alberta only.** Saskatchewan and BC were evaluated on 2026-08-23 and dropped — SK publishes
+2-point 2-D sticks with no survey and no production volumes; BC was only a single-lateral
+comparison. All three sources below are Alberta and all are free.
+
+- **AER ST37 shapefiles** — the geometry anchor. `ST37_WG_*` is **PolyLineZ (true 3-D)** with
+  `WGGeomSrce` flagging each bore `Surveyed` (real directional survey, median 57 stations, max 990)
+  or `Calculated` (2-vertex stick, no survey). Filter on that flag; it matches vertex counts
+  exactly. In block `TWP_001_025`: 24,439 Surveyed / 89,012 Calculated. Attribution licence —
+  publish derivatives, not raw (`data/README.md`).
+- **Petrinex Well Infrastructure** — per-event well headers (`WellIdentifier`,
+  `WellEventSequence`, `WellLocationException`, licence, field/pool, `LinkedFacilityID`). The
+  bridge between ST37 geometry and production.
+- **Petrinex Volumetrics** — monthly OIL/GAS/WATER per **well event** → the pace target and
+  neighbour depletion. One zip per month; free window is a rolling ~5 years (2022-01..2026-07 as
+  of 2026-08-23). Join `WellIdentifier` to `FromToIDIdentifier` where `FromToIDType='WI'`.
+  **This window is the binding constraint on the target** — early production is only observable
+  for wells that came on stream inside it.
 
 ---
 
@@ -63,14 +70,19 @@ target gates, splits). Torch CPU/MPS is fine — the model is ~tens of thousands
 
 ## Phase 1 — cohort (`cohort.py` → `data/processed/cohort.parquet`)
 
-One row per candidate well. Join SK + AB well headers; filter to `first_prod_date >=
-FIRST_PROD_MIN`, has-survey/has-production, spud date present. Compute the pace target where the
-well is mature enough (`months_of_data >= MIN_MONTHS`), else NULL → score-only.
+One row per candidate well. Join ST37 well geometry to Petrinex Well Infrastructure on
+UWI/event, then to Volumetrics on `WellIdentifier` == `FromToIDIdentifier`. Filter to
+`WGGeomSrce == 'Surveyed'`, `first_prod_date >= FIRST_PROD_MIN`, has-production, spud date
+present. Compute the pace target where the well is mature enough
+(`months_of_data >= MIN_MONTHS`), else NULL → score-only.
 
-**Checks (keep in the report):** cohort size per province; % multilateral (≥2 legs) and the leg-count
-distribution; % with a measurable target; target median + P1/P99 (decide winsorization now).
-Play/formation for AB isn't in ST37 — derive it from field/pool lookup or a spatial join to a
-Clearwater/Mannville polygon; SK carries pool/formation directly.
+`FIRST_PROD_MIN` cannot precede the volumetric window (2022-01) — a well that came on earlier has
+its early, highest-rate production truncated and its pace is not comparable.
+
+**Checks (keep in the report):** cohort size; % multilateral (≥2 surveyed bores per `Well_LicNo`)
+and the bore-count distribution; % with a measurable target; target median + P1/P99 (decide
+winsorization now). Play/formation isn't in ST37 — derive it from the Petrinex field/pool codes or
+a spatial join to a Clearwater/Mannville polygon.
 
 ---
 
@@ -78,13 +90,18 @@ Clearwater/Mannville polygon; SK carries pool/formation directly.
 
 The multilateral core. One row per well carrying its **set of legs**.
 
-1. **Enumerate legs.** SK: group by parent well (`WELL_CWI`), take `WELLBORETYPE in (Boss, Leg)`,
-   each with its own `BOTTOMHOLELATITUDE/LONGITUDE`. AB: group UWIs sharing a surface location by
-   event sequence; each leg-UWI's ST37 bottom-hole point is a leg.
-2. **Build straight legs.** Each leg = kickoff/surface point → bottom-hole point. Project to a
-   local metre frame with `geometry.latlon_to_local_m` (avoids the EPSG:3857 inflation trap by
-   construction — see pitfalls). Record per-leg length, azimuth (`geometry.bearing_deg`), heel/toe
-   (x,y), and bottom-hole TVD where available.
+1. **Enumerate legs.** Group ST37 bores by `Well_LicNo`; distinguish them by the UWI label's
+   the UWI label's **location exception** (leading) and **event sequence** (trailing) --
+   `LE/LSD-SEC-TWP-RGEWM/ES`, the Canadian DLS display format. Convert to the Petrinex
+   `WellIdentifier` with `st37.uwi_from_st37_label`; the join is 100% when read this way and
+   68% when the two fields are swapped, so verify the match rate. Keep only bores with
+   `WGGeomSrce == 'Surveyed'`. Verified example: licence `0257776` has 9 surveyed bores across
+   events 02/03.
+2. **Build legs from the survey.** Each `Surveyed` bore already carries its full 3-D polyline —
+   use the vertices, do not approximate with a straight stick. Project to a local metre frame with
+   `geometry.latlon_to_local_m` (avoids the EPSG:3857 inflation trap by construction — see
+   pitfalls); ST37 ships NAD83 10TM, so reproject rather than assuming lat/long. Record per-leg
+   length, azimuth (`geometry.bearing_deg`), heel/toe (x,y), and TVD from the Z ordinate.
 3. **Filter stubs** (`length < MIN_LEG_M`) and record `n_legs`, total lateral length, fan spread
    (azimuth range), and mean inter-leg spacing (min `seg_seg_min_dist` among the well's own legs).
 4. **VERIFY** leg counts against a few known Clearwater fishbones (Marten Hills / Nipisi); the free
@@ -210,10 +227,17 @@ shipped values by a set margin. Calendar retraining is the stateful-watermark of
 
 - **Projection inflation** — Web Mercator (EPSG:3857) over-reads distance ~1.44× at 55° N.
   `geometry.latlon_to_local_m` gives true metres; use it, don't reproject to 3857.
-- **Leg count is a floor** — short legs bottoming in one legal subdivision collapse to one UWI in
-  free data; a dense engineered fishbone under-resolves. State it; the paid AER surveys resolve it.
-- **Straight-line legs** approximate the curved path — fine for short shallow Clearwater legs, worse
-  for long build-and-hold Montney laterals (which is why BC is only the single-lateral comparison).
+- **Leg count is a floor** — short legs bottoming in one legal subdivision can collapse to one UWI;
+  the location-exception code mitigates but does not eliminate this. A dense engineered fishbone
+  may under-resolve. State it; the paid AER surveys resolve it.
+- **Only ~21% of ST37 bores are `Surveyed`** (block `TWP_001_025`; higher in the northern,
+  horizontal-dominated blocks). Report the surveyed fraction of your cohort — and split it by well
+  type, because most `Calculated` bores are verticals that never had a survey to publish, so a bare
+  "78% lack surveys" overstates the loss.
+- **Do not straight-line a surveyed bore.** ST37 `Surveyed` bores carry the full 3-D polyline
+  (median 57 stations); collapsing them to heel-toe sticks throws away the very geometry the
+  closest-approach calculation depends on. Straight lines are only a fallback, and `Calculated`
+  bores should be excluded rather than approximated.
 - **Per-leg production is not measured** — intra-well interference is inferred from cross-well
   variation in leg configs vs. well-level output. Observational, not causal. Say so.
 - **Operators drill good rock tightly** — without geology controls the model learns "tight ⇒ good."
@@ -222,4 +246,8 @@ shipped values by a set margin. Calendar retraining is the stateful-watermark of
 - **gas/6.0 BOE convention** — keep it consistent everywhere (`config.BOE_GAS_DIVISOR`).
 - **Empty-set forward pass IS the counterfactual** — if untested, the headline number is untested.
 - **Alberta raw data is not redistributable** — publish derivatives + attribution; keep `data/`
-  gitignored; anchor anything that must be reproducible-from-repo on the SK unrestricted licence.
+  gitignored. With Alberta as the only source there is no redistributable anchor, so anything that
+  must be reproducible from the repo alone has to go through `fetch_data.py`.
+- **The volumetric window slides** — the free Petrinex archive is a rolling ~5 years, so
+  `FIRST_PROD_MIN` and any "months of history" gate silently change meaning over time. Re-run
+  `fetch_data.py probe_vol` and record the window in the report alongside the results.
