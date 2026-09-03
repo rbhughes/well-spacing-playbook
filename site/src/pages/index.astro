@@ -1,0 +1,294 @@
+---
+// spacing.purr.io — the well-spacing playbook as an essay: the
+// wrong-sign trap, the natural experiment that fixes it, the model,
+// and the honest end. Numbers come verbatim from reports/.
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Well Spacing Playbook</title>
+    <link rel="canonical" href="https://spacing.purr.io/" />
+    <meta
+      name="description"
+      content="How close is too close for horizontal oil wells? The naive answer has the wrong sign. A machine-learning playbook on public Alberta data, taken exactly as far as public data can go."
+    />
+  </head>
+  <body>
+    <nav class="topnav">
+      <a class="logo" href="https://purr.io" aria-label="purr.io">
+        <img src="/purrio_2026.png" alt="purr.io logo" />
+      </a>
+      <span class="brand">Well Spacing Playbook</span>
+      <a href="https://github.com/rbhughes/well-spacing-playbook">GitHub</a>
+      <span class="vintage">Alberta public data &middot; 2025</span>
+    </nav>
+
+    <header class="masthead">
+      <p class="kicker">A CAUTIONARY TALE, THEN A PLAYBOOK</p>
+      <h1>How close is too close?</h1>
+      <p class="standfirst">
+        Drill two horizontal wells too near each other and they steal
+        each other&rsquo;s oil. Everyone knows this. So why does every
+        naive analysis of public data conclude that crowded wells
+        produce <em>more</em>? This project answers that with a
+        measurement &mdash; and then takes machine learning on free
+        public data exactly as far as it can go, stopping where it
+        provably can&rsquo;t.
+      </p>
+    </header>
+
+    <article class="body">
+      <h2>Three numbers</h2>
+      <div class="cards">
+        <div class="card">
+          <div class="num confound">+1.9</div>
+          <p><strong>Between pads</strong> (the naive regression):
+          more neighbouring withdrawal correlates with <em>more</em>
+          production. Operators drill good rock tightly &mdash; any
+          spacing study that ignores this inherits the confound and
+          gets the wrong sign.</p>
+        </div>
+        <div class="card">
+          <div class="num true-sign">&minus;5.3</div>
+          <p><strong>Within pads</strong> (rock held fixed): the same
+          relationship measured across 4,858 wells on 1,416 multi-well
+          pads flips to negative [95% CI &minus;11.4 to &minus;0.5].
+          The natural experiment recovers the physics.</p>
+        </div>
+        <div class="card">
+          <div class="num penalty">+16.7</div>
+          <p><strong>Counterfactual penalty</strong>: the model&rsquo;s
+          median within-pad crowding cost, in points of peer-median
+          pace [p25/p75 +7.3/+31.4]. Economically material,
+          directionally right &mdash; and not precise enough to
+          prescribe spacing. The report says so plainly.</p>
+        </div>
+      </div>
+
+      <figure>
+        <svg id="contrast" width="820" height="200" role="img"
+          aria-label="Between-pad vs within-pad slope estimates"></svg>
+        <figcaption>
+          Crowding-vs-production slopes, points of peer-median pace per
+          unit of exposure. Both exposure definitions flip sign when
+          geology is held fixed; the withdrawal-weighted contrast
+          excludes zero. Verbatim from
+          <code>reports/within_pad_contrast.md</code>.
+        </figcaption>
+      </figure>
+
+      <h2>The geometry underneath</h2>
+      <p>
+        Everything rests on a deterministic 3-D reconstruction of every
+        horizontal well in Alberta from public directional surveys:
+        <strong>105,724 legs across 65,082 wells</strong>, with
+        closest-approach, vertical offset, overlap, and orientation
+        computed between wells <em>and between a well&rsquo;s own
+        branches</em> &mdash; multilateral self-interference, a setting
+        public analyses almost never touch. Every lateral is drawn
+        below.
+      </p>
+      <div id="map" class="map-box" role="application"
+        aria-label="All Alberta horizontal well laterals"></div>
+      <p class="mapnote">
+        Each line is one leg, heel to toe (straightened for display).
+        Zoom into the Montney or Clearwater fairways and the pad
+        architecture &mdash; parallel fans of sibling laterals &mdash;
+        is the between-pad vs within-pad distinction made visible.
+        Two-finger scroll passes through; use &#8984;+scroll to zoom.
+      </p>
+
+      <h2>What survived the gate</h2>
+      <p>
+        The model &mdash; two permutation-invariant set encoders (a
+        well&rsquo;s own legs; its neighbours) predicting calibrated
+        P10/P50/P90 first-year pace &mdash; had to beat plain baselines
+        on a temporal holdout opened <em>exactly once</em>, or nothing
+        downstream ships. It passed: <strong>P50 MAE 71.6 vs 78.1</strong>
+        for the best gradient-boosting baseline, with test calibration
+        of 12/53/88 against nominal 10/50/90. And the depletion
+        counterfactual behaves like physics, not noise: erase the
+        neighbourhood&rsquo;s withdrawal history and the predicted
+        penalty grows monotonically with crowding.
+      </p>
+      <figure>
+        <svg id="penalty" width="700" height="220" role="img"
+          aria-label="Median context penalty by neighbour count"></svg>
+        <figcaption>
+          Median context (depletion) penalty on in-domain wells, by
+          neighbour count &mdash; from
+          <code>reports/counterfactual_summary.md</code>. Monotone in
+          crowding, ~zero for isolated wells (a hard physics gate).
+        </figcaption>
+      </figure>
+      <p>
+        And what <em>failed</em> is printed, not hidden: the
+        bare-proximity probe &mdash; walk a neighbour from 1,500&nbsp;m
+        to 100&nbsp;m with no withdrawal history &mdash; moved the
+        median prediction barely at all. The model learned
+        interference through <em>depletion</em>, the channel the data
+        actually identifies, and not through distance alone. The
+        evaluation gate records <code>approach&nbsp;FAIL</code> in the
+        same table as its passes.
+      </p>
+
+      <h2>The playbook, as it was actually built</h2>
+      <p>
+        The repo is organized as the sequence it was developed in
+        &mdash; each phase a runnable stage with its own artifact,
+        so a team with proprietary data can replay it with their
+        inputs:
+      </p>
+      <ol class="phases">
+        <li><strong>0&ndash;2 · Cohort &amp; geometry.</strong>
+          Assemble the well cohort from Petrinex production; rebuild
+          every leg in 3-D from AER ST37 surveys.</li>
+        <li><strong>3&ndash;5 · Pairing &amp; context.</strong>
+          Candidate neighbour pairs, pairwise and intra-well geometry,
+          then time-aware context: who was withdrawing what, when.</li>
+        <li><strong>6&ndash;7 · Dataset &amp; baselines first.</strong>
+          Leakage-proof design (pad-aware splits, temporal holdout),
+          and plain baselines before any deep model exists.</li>
+        <li><strong>8&ndash;9 · Model &amp; the gate.</strong> Set
+          encoders, quantile loss; the one-shot test-set opening with
+          physics probes that can veto shipping.</li>
+        <li><strong>10&ndash;11 · Counterfactuals &amp; the report.</strong>
+          Edit a neighbour set, re-predict, difference; write down
+          everything &mdash; including the flattering single-seed
+          numbers that shrank under multi-seed averaging.</li>
+      </ol>
+
+      <h2>Where public data ends</h2>
+      <p>
+        The finish line is drawn honestly: an optimal-spacing
+        prescription is <strong>not deliverable from public data</strong>,
+        because the three inputs that decide it are censored &mdash;
+        pre-window depletion history, frac intensity, and within-pad
+        geology. <a
+        href="https://github.com/rbhughes/well-spacing-playbook/blob/main/docs/WITH_PROPRIETARY_DATA.md">
+        <code>WITH_PROPRIETARY_DATA.md</code></a> maps each gap to the
+        data category that closes it. If you hold that data, the
+        machinery above is built for you to drop it in.
+      </p>
+    </article>
+
+    <footer>
+      <p>
+        Data: AER ST37 directional surveys and Petrinex volumetrics
+        (Government of Alberta; re-fetched, never re-hosted).
+        Full chain of evidence:
+        <a href="https://github.com/rbhughes/well-spacing-playbook/blob/main/reports/interference_report.md">reports/interference_report.md</a>.
+        Basemap tiles by <a href="https://openfreemap.org">OpenFreeMap</a>.
+        Non-commercial demonstration; derived statistics only.
+      </p>
+    </footer>
+
+    <script src="../scripts/app.js"></script>
+  </body>
+</html>
+
+<style is:global>
+  :root {
+    --page: #eeeeeb;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink-2: #52514e;
+    --muted: #898781;
+    --hairline: #ddddd6;
+    --border: rgba(11, 11, 11, 0.1);
+    --accent: #256abf;
+    --brand: #d95f00;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  a { color: var(--accent); }
+  .topnav {
+    display: flex; align-items: center; gap: 0.5rem;
+    padding: 0.55rem 2.1rem;
+    border-bottom: 1px solid var(--hairline);
+    background: var(--surface);
+  }
+  .topnav .logo img { height: 26px; width: 26px; display: block; border-radius: 6px; }
+  .topnav .brand { font-weight: 700; color: var(--brand); margin-right: 0.5rem; }
+  .topnav a { color: var(--brand); font-weight: 700; text-decoration: none; font-size: 0.92rem; }
+  .topnav .vintage { margin-left: auto; color: var(--muted); font-size: 0.85rem; }
+  .masthead {
+    max-width: 62rem; margin: 0 auto;
+    padding: 1.6rem 2.1rem 0.4rem;
+    text-align: center;
+    border-bottom: 3px double var(--hairline);
+  }
+  .kicker { color: var(--muted); letter-spacing: 0.18em; font-size: 0.75rem; margin: 0; }
+  h1 {
+    margin: 0.4rem 0;
+    font: 700 2.3rem/1.15 Georgia, "Iowan Old Style", serif;
+  }
+  .standfirst {
+    font: 1.2rem/1.6 Georgia, "Iowan Old Style", serif;
+    color: var(--ink-2);
+    margin: 0.6rem auto 1.2rem;
+    max-width: 46rem;
+  }
+  .body { max-width: 62rem; margin: 0 auto; padding: 0.8rem 2.1rem; }
+  .body h2 { font: 700 1.35rem/1.3 Georgia, serif; margin: 1.6rem 0 0.5rem; }
+  .body p, .body li {
+    font: 1.12rem/1.65 Georgia, "Iowan Old Style", serif;
+  }
+  .cards { display: flex; gap: 0.9rem; flex-wrap: wrap; margin: 1rem 0; }
+  .card {
+    flex: 1; min-width: 240px;
+    background: var(--surface);
+    border: 1.5px solid var(--hairline);
+    border-radius: 12px;
+    padding: 0.9rem 1.1rem;
+  }
+  .card .num { font: 700 2.4rem/1 Georgia, serif; margin-bottom: 0.4rem; }
+  .num.confound { color: #898781; }
+  .num.true-sign { color: #d7301f; }
+  .num.penalty { color: var(--brand); }
+  .card p { font-size: 0.98rem; line-height: 1.5; margin: 0; }
+  figure { margin: 1rem 0; }
+  figure svg {
+    width: 100%; height: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  figcaption { color: var(--muted); font: 0.85rem/1.4 system-ui, sans-serif; margin-top: 0.35rem; }
+  figcaption code, .body code {
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 0.86em;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    padding: 0.05em 0.3em;
+  }
+  .map-box {
+    height: 64vh; min-height: 440px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    margin: 1rem 0 0.4rem;
+  }
+  .mapnote { color: var(--ink-2); font-size: 1rem !important; }
+  .phases { padding-left: 1.2rem; }
+  .phases li { margin: 0.5rem 0; }
+  footer {
+    color: var(--muted); font-size: 0.8rem;
+    max-width: 62rem; margin: 0 auto;
+    padding: 1rem 2.1rem 1.4rem;
+    border-top: 1px solid var(--hairline);
+  }
+  @media (max-width: 700px) {
+    h1 { font-size: 1.7rem; }
+    .masthead, .body, footer { padding-left: 1.2rem; padding-right: 1.2rem; }
+  }
+</style>
