@@ -1,5 +1,9 @@
 # well-spacing-playbook
 
+> **Read it as an essay at [spacing.purr.io](https://spacing.purr.io)** —
+> the three-number cautionary tale, every one of the 105,724 laterals
+> on a map, and the honest boundary where public data runs out.
+
 A complete, honestly-evaluated attempt to answer "how close is too close?"
 for horizontal oil wells with machine learning — built entirely on free
 public data, taken as far as that data can go, and **documented at the

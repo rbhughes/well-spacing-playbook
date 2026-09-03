@@ -47,3 +47,8 @@ __pycache__/
 
 # private reference note (mentions proprietary Geologic catalog)
 IF_WE_HAD_GEOLOGIC_DATA.md
+
+# static site
+site/node_modules/
+site/dist/
+site/.astro/
