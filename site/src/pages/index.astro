@@ -13,7 +13,7 @@
     <link rel="canonical" href="https://spacing.purr.io/" />
     <meta
       name="description"
-      content="How close is too close for horizontal oil wells? The naive answer has the wrong sign. A machine-learning playbook on public Alberta data, taken exactly as far as public data can go."
+      content="Parent-child interference, measured on public Alberta data: the naive answer has the wrong sign. An ML spacing playbook for geoscientists and engineers, taken exactly as far as public data can go — and what would turn it into a well planner."
     />
   </head>
   <body>
@@ -30,13 +30,15 @@
       <p class="kicker">A CAUTIONARY TALE, THEN A PLAYBOOK</p>
       <h1>How close is too close?</h1>
       <p class="standfirst">
-        Drill two horizontal wells too near each other and they steal
-        each other&rsquo;s oil. Everyone knows this. So why does every
-        naive analysis of public data conclude that crowded wells
-        produce <em>more</em>? This project answers that with a
-        measurement &mdash; and then takes machine learning on free
-        public data exactly as far as it can go, stopping where it
-        provably can&rsquo;t.
+        Every operator knows parent&ndash;child interference is real:
+        infill too tight and the children drain the parents&rsquo;
+        rock. So why does a straightforward regression on public data
+        conclude that crowded wells produce <em>more</em>? This
+        project answers that with a measurement, builds a calibrated
+        forecasting model on free Alberta data, and stops &mdash;
+        honestly &mdash; exactly where public data runs out. Which is
+        also where it gets interesting for anyone holding the
+        proprietary pieces.
       </p>
     </header>
 
@@ -45,26 +47,34 @@
       <div class="cards">
         <div class="card">
           <div class="num confound">+1.9</div>
-          <p><strong>Between pads</strong> (the naive regression):
-          more neighbouring withdrawal correlates with <em>more</em>
-          production. Operators drill good rock tightly &mdash; any
-          spacing study that ignores this inherits the confound and
-          gets the wrong sign.</p>
+          <p><strong>The high-grading trap.</strong> Compare wells
+          <em>across</em> an asset and more neighbouring withdrawal
+          correlates with <em>more</em> production. That isn&rsquo;t
+          physics &mdash; it&rsquo;s development behaviour. Operators
+          high-grade: the best rock gets the tightest spacing, so
+          crowding becomes a proxy for rock quality. Any spacing study
+          built on cross-asset comparison inherits this and reports
+          interference with the wrong sign.</p>
         </div>
         <div class="card">
           <div class="num true-sign">&minus;5.3</div>
-          <p><strong>Within pads</strong> (rock held fixed): the same
-          relationship measured across 4,858 wells on 1,416 multi-well
-          pads flips to negative [95% CI &minus;11.4 to &minus;0.5].
-          The natural experiment recovers the physics.</p>
+          <p><strong>Same-pad siblings tell the truth.</strong> Wells
+          on one pad share rock, vintage, and completion era &mdash;
+          so comparing only pad-mates removes geology from the
+          question. Across 4,858 wells on 1,416 multi-well pads, the
+          slope flips negative [95% CI &minus;11.4 to &minus;0.5,
+          cluster-bootstrapped by pad]. That is interference,
+          isolated the way a field trial would isolate it.</p>
         </div>
         <div class="card">
           <div class="num penalty">+16.7</div>
-          <p><strong>Counterfactual penalty</strong>: the model&rsquo;s
-          median within-pad crowding cost, in points of peer-median
-          pace [p25/p75 +7.3/+31.4]. Economically material,
-          directionally right &mdash; and not precise enough to
-          prescribe spacing. The report says so plainly.</p>
+          <p><strong>The what-if price.</strong> Ask the trained model
+          &ldquo;what would this well have done without its
+          pad-mates?&rdquo; and the median answer is a 16.7-point
+          crowding penalty on first-year pace, relative to peers
+          [p25/p75 +7.3/+31.4]. Material money, right sign &mdash;
+          and, on public data alone, too uncertain to set spacing
+          with. The report says so in as many words.</p>
         </div>
       </div>
 
@@ -72,24 +82,31 @@
         <svg id="contrast" width="820" height="200" role="img"
           aria-label="Between-pad vs within-pad slope estimates"></svg>
         <figcaption>
-          Crowding-vs-production slopes, points of peer-median pace per
-          unit of exposure. Both exposure definitions flip sign when
-          geology is held fixed; the withdrawal-weighted contrast
-          excludes zero. Verbatim from
-          <code>reports/within_pad_contrast.md</code>.
+          Crowding-vs-production slopes, in points of peer-median pace
+          per unit of exposure, under two definitions of crowding:
+          offset withdrawal (how much the neighbours produced) and
+          offset count (how many neighbours). Both flip sign the
+          moment geology is held fixed by comparing only same-pad
+          wells; the withdrawal-weighted version excludes zero.
+          Verbatim from <code>reports/within_pad_contrast.md</code>.
         </figcaption>
       </figure>
 
       <h2>The geometry underneath</h2>
       <p>
-        Everything rests on a deterministic 3-D reconstruction of every
-        horizontal well in Alberta from public directional surveys:
-        <strong>105,724 legs across 65,082 wells</strong>, with
-        closest-approach, vertical offset, overlap, and orientation
-        computed between wells <em>and between a well&rsquo;s own
-        branches</em> &mdash; multilateral self-interference, a setting
-        public analyses almost never touch. Every lateral is drawn
-        below.
+        Everything rests on the same kind of 3-D wellbore
+        reconstruction a drilling team runs for anti-collision
+        &mdash; except province-wide, from the public record. Alberta
+        publishes the directional surveys operators file (AER ST37),
+        and from them this pipeline rebuilds
+        <strong>105,724 laterals across 65,082 horizontal wells</strong>
+        deterministically: true closest approach in 3-D, TVD offset,
+        lateral overlap length, and relative azimuth, computed
+        well-to-well <em>and leg-to-leg within multilaterals</em>.
+        That second part matters: in the Clearwater and other
+        heavy-oil fairways, multi-leg fishbone wells
+        drain against their own branches, and almost no public
+        analysis quantifies it. Every lateral is drawn below.
       </p>
       <div id="map" class="map-box" role="application"
         aria-label="All Alberta horizontal well laterals"></div>
@@ -101,38 +118,97 @@
         Two-finger scroll passes through; use &#8984;+scroll to zoom.
       </p>
 
+      <h2>The model, in reservoir terms</h2>
+      <p>
+        Forget the architecture diagram for a moment and think about
+        how an experienced engineer forecasts a new well: look at the
+        offsets. Which wells are nearby, how close do they run, how
+        much have they already withdrawn, how long have they been on.
+        Then weigh them &mdash; a parallel lateral 150&nbsp;m away
+        that has produced hard for three years counts for a lot; a
+        distant toe-to-toe neighbour counts for little. The model does
+        exactly this, except the weighting is <em>learned</em> from
+        65,000 wells instead of hand-built.
+      </p>
+      <p>
+        The machinery that does the weighing is a <strong>set
+        encoder</strong> &mdash; and the name is less exotic than it
+        sounds. An offset list has no natural order and no fixed
+        length: one well has two neighbours, another has thirty. A
+        set encoder is a network built to accept exactly that kind of
+        input &mdash; each offset described by its geometry (closest
+        approach, TVD offset, overlap, azimuth), timing, and
+        withdrawal history &mdash; and compress the list into a
+        summary, learning which offsets deserve attention. Think of
+        it as a drainage-weighted offset summary where the weights
+        came from data rather than judgment. There are two of them:
+        one over the well&rsquo;s neighbours, one over its
+        <em>own legs</em>, so a fishbone&rsquo;s self-interference is
+        priced by the same mechanism.
+      </p>
+      <p>
+        The output is deliberately in the industry&rsquo;s native
+        uncertainty language: <strong>P10/P50/P90</strong> of
+        first-year production pace, expressed relative to peer wells
+        in the same play and vintage. Not a single-number type-curve
+        multiplier &mdash; a band. And a band is only useful if
+        it&rsquo;s honest: on wells the model never saw, actuals fell
+        below its P10 12% of the time, below its P50 53%, below its
+        P90 88% &mdash; against the nominal 10/50/90. That&rsquo;s
+        the property reserves bands are supposed to have and often
+        don&rsquo;t.
+      </p>
+
       <h2>What survived the gate</h2>
       <p>
-        The model &mdash; two permutation-invariant set encoders (a
-        well&rsquo;s own legs; its neighbours) predicting calibrated
-        P10/P50/P90 first-year pace &mdash; had to beat plain baselines
-        on a temporal holdout opened <em>exactly once</em>, or nothing
-        downstream ships. It passed: <strong>P50 MAE 71.6 vs 78.1</strong>
-        for the best gradient-boosting baseline, with test calibration
-        of 12/53/88 against nominal 10/50/90. And the depletion
-        counterfactual behaves like physics, not noise: erase the
-        neighbourhood&rsquo;s withdrawal history and the predicted
-        penalty grows monotonically with crowding.
+        Before any of its output counts, the model had to pass a
+        blind lookback &mdash; the ML term is a <em>temporal
+        holdout</em>. The newest wells were sealed off during all
+        development and opened <strong>exactly once</strong>, the
+        way you&rsquo;d grade last year&rsquo;s forecast against this
+        year&rsquo;s actuals: no peeking, no second attempt, and a
+        pre-registered rule that if the model lost to simpler
+        methods, nothing downstream ships. It won &mdash; median
+        forecast error of <strong>71.6 points vs 78.1</strong> for
+        gradient boosting, the strongest of the conventional
+        tabular-ML baselines &mdash; with the calibration above.
+      </p>
+      <p>
+        It also had to behave like a reservoir, not a curve-fit.
+        The counterfactual machinery works like a what-if run:
+        re-forecast the same well with its offsets&rsquo; withdrawal
+        history erased, and the difference is the interference price.
+        That price is near zero for isolated wells and grows
+        monotonically with crowding &mdash; a hard physics gate the
+        model passed.
       </p>
       <figure>
         <svg id="penalty" width="700" height="220" role="img"
           aria-label="Median context penalty by neighbour count"></svg>
         <figcaption>
-          Median context (depletion) penalty on in-domain wells, by
-          neighbour count &mdash; from
+          Median depletion penalty by offset count: the drop in
+          forecast pace when the what-if erases the offsets&rsquo;
+          withdrawal history &mdash; from
           <code>reports/counterfactual_summary.md</code>. Monotone in
-          crowding, ~zero for isolated wells (a hard physics gate).
+          crowding, near zero for isolated wells: the model behaves
+          like drainage, not like a curve-fit.
         </figcaption>
       </figure>
       <p>
-        And what <em>failed</em> is printed, not hidden: the
-        bare-proximity probe &mdash; walk a neighbour from 1,500&nbsp;m
-        to 100&nbsp;m with no withdrawal history &mdash; moved the
-        median prediction barely at all. The model learned
-        interference through <em>depletion</em>, the channel the data
-        actually identifies, and not through distance alone. The
-        evaluation gate records <code>approach&nbsp;FAIL</code> in the
-        same table as its passes.
+        And what <em>failed</em> is printed, not hidden. One probe
+        walks a hypothetical offset in from 1,500&nbsp;m to
+        100&nbsp;m with <em>no</em> production history &mdash; an
+        undrilled permit next door, in effect &mdash; and the
+        forecast barely moves. Reservoir intuition says it
+        shouldn&rsquo;t move much (an undrained neighbour
+        hasn&rsquo;t taken your oil yet), but it also flags what the
+        model can&rsquo;t see: frac-hit risk from a <em>future</em>
+        completion nearby, because public Alberta data carries no
+        completion design at all. The model learned interference
+        through <em>depletion</em> &mdash; the channel the data
+        actually identifies &mdash; not through bare distance, and
+        the evaluation gate records <code>approach&nbsp;FAIL</code>
+        in the same table as its passes.
       </p>
 
       <h2>The playbook, as it was actually built</h2>
@@ -144,34 +220,78 @@
       </p>
       <ol class="phases">
         <li><strong>0&ndash;2 · Cohort &amp; geometry.</strong>
-          Assemble the well cohort from Petrinex production; rebuild
-          every leg in 3-D from AER ST37 surveys.</li>
-        <li><strong>3&ndash;5 · Pairing &amp; context.</strong>
-          Candidate neighbour pairs, pairwise and intra-well geometry,
-          then time-aware context: who was withdrawing what, when.</li>
+          Assemble the producing-well cohort from Petrinex
+          volumetrics; rebuild every lateral in 3-D from the AER
+          ST37 directional surveys.</li>
+        <li><strong>3&ndash;5 · Offsets &amp; timing.</strong>
+          Candidate offset pairs, pairwise and leg-to-leg geometry,
+          then the timeline that matters for interference: who was
+          withdrawing what, when, relative to each well&rsquo;s
+          first production.</li>
         <li><strong>6&ndash;7 · Dataset &amp; baselines first.</strong>
-          Leakage-proof design (pad-aware splits, temporal holdout),
-          and plain baselines before any deep model exists.</li>
-        <li><strong>8&ndash;9 · Model &amp; the gate.</strong> Set
-          encoders, quantile loss; the one-shot test-set opening with
-          physics probes that can veto shipping.</li>
-        <li><strong>10&ndash;11 · Counterfactuals &amp; the report.</strong>
-          Edit a neighbour set, re-predict, difference; write down
-          everything &mdash; including the flattering single-seed
-          numbers that shrank under multi-seed averaging.</li>
+          The anti-fooling design: pad-mates never split across
+          train and test (they&rsquo;d leak shared geology), the
+          newest wells sealed for the blind lookback, and simple
+          benchmark models fitted <em>before</em> any neural network
+          exists, so there&rsquo;s something honest to lose to.</li>
+        <li><strong>8&ndash;9 · Model &amp; the gate.</strong> The
+          set encoders and P10/P50/P90 forecast; then the one-shot
+          opening of the sealed wells, with physics probes empowered
+          to veto shipping.</li>
+        <li><strong>10&ndash;11 · What-ifs &amp; the report.</strong>
+          Edit an offset list, re-forecast, difference &mdash; and
+          write down everything, including the flattering
+          first-run numbers that shrank when the training was
+          repeated from different random starts and averaged.</li>
       </ol>
 
-      <h2>Where public data ends</h2>
+      <h2>From playbook to well planner</h2>
       <p>
         The finish line is drawn honestly: an optimal-spacing
-        prescription is <strong>not deliverable from public data</strong>,
-        because the three inputs that decide it are censored &mdash;
-        pre-window depletion history, frac intensity, and within-pad
-        geology. <a
+        prescription is <strong>not deliverable from public data
+        alone</strong>. Three inputs that decide the answer are
+        censored from the public record, and each maps to a specific
+        failure you can see in the results above:
+      </p>
+      <ul class="gaps">
+        <li><strong>Full production histories.</strong> Petrinex&rsquo;s
+          free window is a rolling ~5 years, so a 2015 parent&rsquo;s
+          early drawdown &mdash; the depletion that actually hits a
+          2023 child &mdash; is invisible. The model prices depletion
+          it can see; it can&rsquo;t price what the window censors.</li>
+        <li><strong>Completion design.</strong> Tonnage, stages,
+          fluid, intensity &mdash; none of it is in the public
+          Alberta record. This is precisely why the model reads
+          crowding through depletion rather than geometry: without
+          frac data it cannot distinguish a tightly-spaced pad from
+          a frac-hit waiting to happen. The <code>approach FAIL</code>
+          above is this gap, measured.</li>
+        <li><strong>Within-pad geology.</strong> Tops, logs, mapped
+          reservoir properties. The within-pad trick removes geology
+          by holding it fixed; with actual geological data the model
+          could <em>use</em> it instead of controlling for it.</li>
+      </ul>
+      <p>
+        Here is the part worth saying plainly: <strong>none of these
+        are exotic.</strong> They are standard tables in commercial
+        well-data subscriptions &mdash; the kind of catalog a vendor
+        like <a href="https://www.geologic.com/">geoLOGIC</a> has
+        maintained for Western Canada for decades: complete
+        production back to first oil, completion and frac detail,
+        interpreted tops. This playbook&rsquo;s gap list reads like
+        a page from that catalog, and that is not a coincidence.
+        Load those three inputs into the pipeline exactly as built
+        &mdash; they slot into the same offset descriptions the set
+        encoders already consume &mdash; retrain, and the cautionary
+        tale becomes a <strong>working ML well planner</strong>:
+        calibrated P10/P50/P90 for a proposed location, the
+        parent&ndash;child penalty priced <em>before</em> permitting,
+        spacing sensitivity run as a batch of what-ifs instead of a
+        multi-well science experiment. <a
         href="https://github.com/rbhughes/well-spacing-playbook/blob/main/docs/WITH_PROPRIETARY_DATA.md">
-        <code>WITH_PROPRIETARY_DATA.md</code></a> maps each gap to the
-        data category that closes it. If you hold that data, the
-        machinery above is built for you to drop it in.
+        <code>WITH_PROPRIETARY_DATA.md</code></a> is the drop-in
+        spec, gap by gap. The machinery is finished; it is waiting
+        on the data.
       </p>
     </article>
 
@@ -281,6 +401,8 @@
   .mapnote { color: var(--ink-2); font-size: 1rem !important; }
   .phases { padding-left: 1.2rem; }
   .phases li { margin: 0.5rem 0; }
+  .gaps { padding-left: 1.2rem; }
+  .gaps li { margin: 0.5rem 0; }
   footer {
     color: var(--muted); font-size: 0.8rem;
     max-width: 62rem; margin: 0 auto;
