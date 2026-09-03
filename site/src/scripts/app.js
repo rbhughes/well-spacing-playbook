@@ -8,10 +8,10 @@ function drawContrast() {
   const svg = document.getElementById("contrast");
   const W = 820, H = 200, m = { l: 300, r: 40 };
   const rows = [
-    { label: "withdrawal exposure · between pads", v: 1.9, lo: null, hi: null, c: "#898781", y: 40 },
-    { label: "withdrawal exposure · WITHIN pads", v: -5.3, lo: -11.4, hi: -0.5, c: "#d7301f", y: 75 },
-    { label: "neighbour-count exposure · between pads", v: 0.9, lo: null, hi: null, c: "#898781", y: 125 },
-    { label: "neighbour-count exposure · WITHIN pads", v: -2.8, lo: -9.6, hi: 1.8, c: "#ef6548", y: 160 },
+    { label: "offset withdrawal · between pads", v: 1.9, lo: null, hi: null, c: "#898781", y: 40 },
+    { label: "offset withdrawal · WITHIN pads", v: -5.3, lo: -11.4, hi: -0.5, c: "#d7301f", y: 75 },
+    { label: "offset count · between pads", v: 0.9, lo: null, hi: null, c: "#898781", y: 125 },
+    { label: "offset count · WITHIN pads", v: -2.8, lo: -9.6, hi: 1.8, c: "#ef6548", y: 160 },
   ];
   const lo = -13, hi = 4;
   const x = (v) => m.l + ((v - lo) / (hi - lo)) * (W - m.l - m.r);
@@ -38,7 +38,7 @@ function drawPenalty() {
   const svg = document.getElementById("penalty");
   const W = 700, H = 220, m = { t: 26, b: 40, l: 10, r: 10 };
   const bins = [
-    { label: "1–3 nbrs", v: -23.2, n: 458 },
+    { label: "1–3 offsets", v: -23.2, n: 458 },
     { label: "4–8", v: -49.4, n: 936 },
     { label: "9–12", v: -66.1, n: 828 },
     { label: ">12", v: -93.5, n: 8115 },
@@ -59,7 +59,7 @@ function drawPenalty() {
       font-size="9" fill="#898781">n=${b.n.toLocaleString()}</text>`;
   });
   s += `<text x="${m.l + 4}" y="${m.t - 10}" font-size="10"
-    fill="#898781">median penalty, pts of peer-P50 pace (erasing neighbours' withdrawal)</text>`;
+    fill="#898781">median penalty, pts of peer-P50 pace (offsets' withdrawal erased)</text>`;
   svg.innerHTML = s;
 }
 
