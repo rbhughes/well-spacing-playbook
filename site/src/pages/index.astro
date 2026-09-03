@@ -106,8 +106,30 @@
         That second part matters: in the Clearwater and other
         heavy-oil fairways, multi-leg fishbone wells
         drain against their own branches, and almost no public
-        analysis quantifies it. Every lateral is drawn below.
+        analysis quantifies it.
       </p>
+      <p>
+        Here is one of those wells, live from the data &mdash; not a
+        cartoon. Nine surveyed legs of a single Baytex multilateral
+        in the Peace River heavy-oil area (licence 0318429), rebuilt
+        from the 1,569 survey stations in its public ST37 record: one
+        build section leaving surface, then a fan of laterals landing
+        in the pay and running up to 1.7&nbsp;km.
+      </p>
+      <figure>
+        <div id="fish-box" class="fish-box">
+          <canvas id="fishbone"></canvas>
+        </div>
+        <figcaption>
+          A real nine-leg fishbone, drawn from its AER ST37
+          directional surveys in true 3-D (2&times; vertical
+          exaggeration; ticks drop to the landing plane).
+          <strong>Drag to rotate.</strong> The question the model
+          prices: how much do these legs steal from each other &mdash;
+          and from the pad next door?
+        </figcaption>
+      </figure>
+      <p>Every lateral in the province is drawn below.</p>
       <div id="map" class="map-box" role="application"
         aria-label="All Alberta horizontal well laterals"></div>
       <p class="mapnote">
@@ -220,29 +242,86 @@
       </p>
       <ol class="phases">
         <li><strong>0&ndash;2 · Cohort &amp; geometry.</strong>
-          Assemble the producing-well cohort from Petrinex
-          volumetrics; rebuild every lateral in 3-D from the AER
-          ST37 directional surveys.</li>
+          Parse the ST37 shapefiles with a purpose-built PolyLineZ
+          reader (no GDAL &mdash; the format is simple enough to
+          read raw, and the pipeline stays dependency-light), keeping
+          only bores flagged <code>Surveyed</code>, since the
+          <code>Calculated</code> ones are two-vertex sticks with no
+          real survey. Join geometry to Petrinex on the UWI built
+          from the DLS label &mdash; where the details bite: the
+          location exception is <em>alphanumeric</em> (F1, AA,
+          W0&hellip;), and a digits-only parse silently dropped
+          11.7% of the province before a reconciliation check that
+          refuses to lump &ldquo;excluded&rdquo; with
+          &ldquo;unexplained&rdquo; caught it. Final parse: 532,553
+          of 532,623 wells (99.99%). Distances are computed in a
+          local metre frame, never Web Mercator, which over-reads by
+          ~1.44&times; at Alberta latitudes &mdash; enough to turn a
+          200&nbsp;m spacing into a fictional 290. Each phase writes
+          one Parquet artifact, so every downstream step is
+          re-runnable and diffable.</li>
         <li><strong>3&ndash;5 · Offsets &amp; timing.</strong>
-          Candidate offset pairs, pairwise and leg-to-leg geometry,
-          then the timeline that matters for interference: who was
-          withdrawing what, when, relative to each well&rsquo;s
-          first production.</li>
+          Candidate offset pairs come from a 2&nbsp;km spatial grid
+          index rather than an O(N&sup2;) sweep; each survives as a
+          vectorized minimum segment-to-segment closest approach
+          over every leg pair, both directions (overlap is
+          asymmetric), plus TVD offset, overlap fraction, and
+          relative azimuth &mdash; with the same math run
+          <em>within</em> each multilateral for the fishbone
+          self-spacing signal. Sanity anchor: pad siblings should
+          read ~200&ndash;400&nbsp;m apart at near-zero azimuth
+          delta. Then the convention that keeps training honest:
+          every feature describes the world <em>as of the
+          well&rsquo;s own spud date</em> &mdash; only offsets
+          already on production count as parents, depletion is
+          cumulative withdrawal before spud, and a later well never
+          rewrites an earlier well&rsquo;s row. Pace is normalized
+          by a per-well EUR from an Arps decline fit, so the target
+          is &ldquo;% of expected recovery per year,&rdquo; not raw
+          barrels that reward long laterals.</li>
         <li><strong>6&ndash;7 · Dataset &amp; baselines first.</strong>
-          The anti-fooling design: pad-mates never split across
-          train and test (they&rsquo;d leak shared geology), the
-          newest wells sealed for the blind lookback, and simple
-          benchmark models fitted <em>before</em> any neural network
-          exists, so there&rsquo;s something honest to lose to.</li>
+          One training example per well: its own static description
+          (lateral length, leg count, fan spread, vintage, TVD,
+          play), its set of legs, and its set of offsets. The
+          anti-fooling design does the heavy lifting: pad-mates are
+          never split across train and validation (they share rock
+          &mdash; a random split lets the model memorize geology and
+          call it skill), the newest wells are sealed for the blind
+          lookback, and normalization statistics come from training
+          wells only. Before any neural network exists, a baseline
+          ladder is fitted: global median (the floor), ridge
+          regression on own-well features (roughly the
+          geology-and-design share), and gradient boosting with the
+          offset set flattened into aggregates &mdash; the honest
+          competitor. If boosting can&rsquo;t beat ridge, the offset
+          signal isn&rsquo;t there and no amount of architecture
+          will conjure it.</li>
         <li><strong>8&ndash;9 · Model &amp; the gate.</strong> The
-          set encoders and P10/P50/P90 forecast; then the one-shot
-          opening of the sealed wells, with physics probes empowered
-          to veto shipping.</li>
+          two set encoders with attention pooling &mdash; small by
+          design, tens of thousands of parameters, trains on a
+          laptop &mdash; output three monotone quantiles under
+          pinball loss, the standard way to make a network forecast
+          honest P10/P50/P90 bands rather than a single average.
+          The empty-offset-list path (the counterfactual itself) is
+          unit-tested to stay finite, along with
+          permutation-invariance: shuffling the offset list must not
+          change the forecast. Then the sealed wells are opened
+          exactly once, and physics probes hold veto power over the
+          MAE: isolated wells must price near zero, penalty must
+          rise with depletion, thinning a fishbone&rsquo;s legs must
+          relieve its self-interference.</li>
         <li><strong>10&ndash;11 · What-ifs &amp; the report.</strong>
-          Edit an offset list, re-forecast, difference &mdash; and
-          write down everything, including the flattering
-          first-run numbers that shrank when the training was
-          repeated from different random starts and averaged.</li>
+          Score every well three ways: as drilled; offsets removed
+          (the parent&ndash;child penalty); own legs thinned to a
+          reference spacing (the fishbone penalty). Each score
+          carries an in-domain flag &mdash; a well from a
+          play-vintage combination the training data never saw gets
+          its penalty marked untrustworthy rather than served
+          anyway. And the report writes down everything, including
+          the part that stung: the flattering single-run headline
+          numbers shrank when training was repeated from different
+          random starts and averaged, so the averaged numbers are
+          the ones published here.</li>
       </ol>
 
       <h2>From playbook to well planner</h2>
@@ -398,6 +477,16 @@
     background: var(--surface);
     margin: 1rem 0 0.4rem;
   }
+  .fish-box {
+    height: 440px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    overflow: hidden;
+    cursor: grab;
+    touch-action: pan-y;
+  }
+  .fish-box canvas { display: block; width: 100%; height: 100%; }
   .mapnote { color: var(--ink-2); font-size: 1rem !important; }
   .phases { padding-left: 1.2rem; }
   .phases li { margin: 0.5rem 0; }
