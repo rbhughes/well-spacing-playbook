@@ -108,22 +108,22 @@ src/ layout + hatchling; uv + committed `uv.lock`; ruff (F/B/I); pytest for anyt
 data gitignored with a fetch script + `data/README.md` provenance; one module per pipeline phase
 matching `docs/RECIPE.md`; constants in `config.py`, never hard-coded.
 
-## 7. STATUS / RESUME HERE (2026-08-28)
+## 7. STATUS / RESUME HERE (2026-09-03)
 
-- **Where we are:** project COMPLETE and recast as `well-spacing-playbook` (local dir renamed from
-  borehole-geometry-ml; GitHub: private `rbhughes/well-spacing-playbook` created 2026-08-28, origin rewired,
-  main+dev pushed; the finished work is still uncommitted locally — history shape is Bryan's). Pipeline phases 1-11 all delivered; 16/16 data verification checks pass;
-  15-model ensembles finalized; final report at reports/interference_report.md. Petrinex acquisition
-  extracted to the standalone ../petrinex-etl repo (this repo's fetch_data.py still works but new
-  fetch work lands there). Framing: cautionary tale + template — see README and
-  docs/WITH_PROPRIETARY_DATA.md.
-- **Implemented + tested:** `config.py`, `geometry.py`, `model.py` (see the over-build note in §0 —
-  `model.py` is the natural first teaching exercise).
-- **Not started:** the pipeline phases `cohort → legs → pairs → context → dataset → baselines →
-  train → score → report`, all stubbed to `docs/RECIPE.md`. Data not yet fetched fresh by the user
-  (the agents' downloads are staged in `data/raw/`).
-- **Good next-session options** (let Bryan choose): (a) tour the scaffold to decide keep-vs-rebuild;
-  (b) strip `model.py` and build the set-encoder together from tensors; (c) start Phase 1
-  (`cohort.py`) and learn DuckDB→pandas→tensors in order. Add the offline ruff+pytest CI when he wants it.
-- **Open reminders:** decide public/private timing; decide how much of the over-built code to
-  rebuild for learning vs. keep as reference.
+- **PUBLISHED.** The finished work is committed (single honest commit
+  `6e83808`, Bryan's explicit choice) and the repo is PUBLIC. Branch
+  flow: work lands on `dev`, merge/push to `main` (default).
+- **Essay site** in `site/` (Astro + MapLibre), deployed to Cloudflare
+  Pages project `well-spacing-playbook`; canonical URL
+  https://spacing.purr.io (Route 53 CNAME done; custom-domain click in
+  Cloudflare pending/done — verify TLS if touching this). Map data:
+  `site/public/data/legs.json` built from
+  `data/processed/legs.parquet` (heel->toe straightened).
+- **Guardrail:** `docs/IF_WE_HAD_GEOLOGIC_DATA.md` is private and
+  gitignored — never commit or quote it; `WITH_PROPRIETARY_DATA.md`
+  is the public version.
+- **Learning contract (§0)** governed the build phase; the project is
+  complete. For site/publishing maintenance, normal implementer mode
+  is fine — but any NEW modeling work with Bryan returns to §0.
+- Tests: `uv run --with pytest python -m pytest` (bare `pytest`
+  fails to spawn in this venv). 15/15 pass.
