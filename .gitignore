@@ -52,3 +52,6 @@ IF_WE_HAD_GEOLOGIC_DATA.md
 site/node_modules/
 site/dist/
 site/.astro/
+
+# Wrangler local cache (account id, build state)
+.wrangler
